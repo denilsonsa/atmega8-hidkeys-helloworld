@@ -35,8 +35,9 @@ all:	main.hex
 	$(COMPILE) -S $< -o $@
 
 flash:	all
-	$(UISP) --erase --upload if=main.hex
-	$(UISP) --erase --upload --verify if=main.hex
+	avrdude -p atmega8 -c USBasp -U flash:w:main.hex:i
+#	$(UISP) --erase --upload if=main.hex
+#	$(UISP) --erase --upload --verify if=main.hex
 
 # Fuse high byte:
 # 0xc9 = 1 1 0 0   1 0 0 1 <-- BOOTRST (boot reset vector at 0x0000)

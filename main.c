@@ -243,6 +243,11 @@ usbRequest_t    *rq = (void *)data;
             usbMsgPtr = &idleRate;
             return 1;
         }else if(rq->bRequest == USBRQ_HID_SET_IDLE){
+			// Set/Get IDLE defines how long the device should keep "quiet" if
+			// the state has not changed.
+			// Recommended default value for keyboard is 500ms, and infinity
+			// for joystick and mice.
+			// See pages 52 and 53 from HID1_11.pdf
             idleRate = rq->wValue.bytes[1];
         }
     }else{
