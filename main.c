@@ -15,34 +15,37 @@
 #include <avr/pgmspace.h>
 #include <avr/wdt.h>
 
+// AVR-Libc stdlib.h
+#include <stdlib.h>
+
 #include "usbdrv.h"
 #include "oddebug.h"
 
 /* ----------------------- hardware I/O abstraction ------------------------ */
 
 /* pin assignments:
-PB0	Key 1
-PB1	Key 2
-PB2	Key 3
-PB3	Key 4
-PB4	Key 5
-PB5 Key 6
+PB0	(not used)
+PB1	(not used)
+PB2	(not used)
+PB3	(not used)
+PB4	(not used)
+PB5 (not used)
 
-PC0	Key 7
-PC1	Key 8
-PC2	Key 9
-PC3	Key 10
-PC4	Key 11
-PC5	Key 12
+PC0	(not used)
+PC1	(not used)
+PC2	(not used)
+PC3	Key 3
+PC4	Key 2
+PC5	Key 1
 
 PD0	USB-
 PD1	debug tx
 PD2	USB+ (int0)
-PD3	Key 13
-PD4	Key 14
-PD5	Key 15
-PD6	Key 16
-PD7	Key 17
+PD3	(not used)
+PD4	(not used)
+PD5	(not used)
+PD6	(not used)
+PD7	(not used)
 */
 
 static void hardwareInit(void)
@@ -150,81 +153,139 @@ PROGMEM char usbHidReportDescriptor[35] = { /* USB report descriptor */
 #define MOD_ALT_RIGHT       (1<<6)
 #define MOD_GUI_RIGHT       (1<<7)
 
-#define KEY_A       4
-#define KEY_B       5
-#define KEY_C       6
-#define KEY_D       7
-#define KEY_E       8
-#define KEY_F       9
-#define KEY_G       10
-#define KEY_H       11
-#define KEY_I       12
-#define KEY_J       13
-#define KEY_K       14
-#define KEY_L       15
-#define KEY_M       16
-#define KEY_N       17
-#define KEY_O       18
-#define KEY_P       19
-#define KEY_Q       20
-#define KEY_R       21
-#define KEY_S       22
-#define KEY_T       23
-#define KEY_U       24
-#define KEY_V       25
-#define KEY_W       26
-#define KEY_X       27
-#define KEY_Y       28
-#define KEY_Z       29
-#define KEY_1       30
-#define KEY_2       31
-#define KEY_3       32
-#define KEY_4       33
-#define KEY_5       34
-#define KEY_6       35
-#define KEY_7       36
-#define KEY_8       37
-#define KEY_9       38
-#define KEY_0       39
+#define KEY_A          4
+#define KEY_B          5
+#define KEY_C          6
+#define KEY_D          7
+#define KEY_E          8
+#define KEY_F          9
+#define KEY_G          10
+#define KEY_H          11
+#define KEY_I          12
+#define KEY_J          13
+#define KEY_K          14
+#define KEY_L          15
+#define KEY_M          16
+#define KEY_N          17
+#define KEY_O          18
+#define KEY_P          19
+#define KEY_Q          20
+#define KEY_R          21
+#define KEY_S          22
+#define KEY_T          23
+#define KEY_U          24
+#define KEY_V          25
+#define KEY_W          26
+#define KEY_X          27
+#define KEY_Y          28
+#define KEY_Z          29
+#define KEY_1          30
+#define KEY_2          31
+#define KEY_3          32
+#define KEY_4          33
+#define KEY_5          34
+#define KEY_6          35
+#define KEY_7          36
+#define KEY_8          37
+#define KEY_9          38
+#define KEY_0          39
+#define KEY_ENTER      40
+#define KEY_SPACE      44
+#define KEY_MINUS      45
+#define KEY_EQUAL      46
+#define KEY_SEMICOLON  51
+#define KEY_COMMA      54
+#define KEY_PERIOD     55
 
-#define KEY_F1      58
-#define KEY_F2      59
-#define KEY_F3      60
-#define KEY_F4      61
-#define KEY_F5      62
-#define KEY_F6      63
-#define KEY_F7      64
-#define KEY_F8      65
-#define KEY_F9      66
-#define KEY_F10     67
-#define KEY_F11     68
-#define KEY_F12     69
-
-static const uchar  keyReport[NUM_KEYS + 1][2] PROGMEM = {
-/* none */  {0, 0},                     /* no key pressed */
-/*  1 */    {MOD_SHIFT_LEFT, KEY_A},
-/*  2 */    {MOD_SHIFT_LEFT, KEY_B},
-/*  3 */    {MOD_SHIFT_LEFT, KEY_C},
-/*  4 */    {MOD_SHIFT_LEFT, KEY_D},
-/*  5 */    {MOD_SHIFT_LEFT, KEY_E},
-/*  6 */    {MOD_SHIFT_LEFT, KEY_F},
-/*  7 */    {MOD_SHIFT_LEFT, KEY_G},
-/*  8 */    {MOD_SHIFT_LEFT, KEY_H},
-/*  9 */    {MOD_SHIFT_LEFT, KEY_I},
-/* 10 */    {MOD_SHIFT_LEFT, KEY_J},
-/* 11 */    {MOD_SHIFT_LEFT, KEY_K},
-/* 12 */    {MOD_SHIFT_LEFT, KEY_L},
-/* 13 */    {MOD_SHIFT_LEFT, KEY_M},
-/* 14 */    {MOD_SHIFT_LEFT, KEY_N},
-/* 15 */    {MOD_SHIFT_LEFT, KEY_O},
-/* 16 */    {MOD_SHIFT_LEFT, KEY_P},
-/* 17 */    {MOD_SHIFT_LEFT, KEY_Q},
-};
+#define KEY_F1         58
+#define KEY_F2         59
+#define KEY_F3         60
+#define KEY_F4         61
+#define KEY_F5         62
+#define KEY_F6         63
+#define KEY_F7         64
+#define KEY_F8         65
+#define KEY_F9         66
+#define KEY_F10        67
+#define KEY_F11        68
+#define KEY_F12        69
 
 static void buildReport(uchar key)
 {
-/* This (not so elegant) cast saves us 10 bytes of program memory */
-    *(int *)reportBuffer = pgm_read_word(keyReport[key]);
+	if (key >= '0' && key <= '9') {
+		reportBuffer[0] = 0;
+		reportBuffer[1] = KEY_0 + key - '0';
+	}
+	else if (key >= 'a' && key <= 'z') {
+		reportBuffer[0] = 0;
+		reportBuffer[1] = KEY_A + key - 'a';
+	}
+	else if (key >= 'A' && key <= 'Z') {
+		reportBuffer[0] = MOD_SHIFT_LEFT;
+		reportBuffer[1] = KEY_A + key - 'A';
+	}
+	else {
+		switch (key) {
+			case '\n':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_ENTER;
+				break;
+
+			case ' ':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_SPACE;
+				break;
+
+			case '-':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_MINUS;
+				break;
+			case '_':
+				reportBuffer[0] = MOD_SHIFT_LEFT;
+				reportBuffer[1] = KEY_MINUS;
+				break;
+
+			case '=':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_EQUAL;
+				break;
+			case '+':
+				reportBuffer[0] = MOD_SHIFT_LEFT;
+				reportBuffer[1] = KEY_EQUAL;
+				break;
+
+			case ';':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_SEMICOLON;
+				break;
+			case ':':
+				reportBuffer[0] = MOD_SHIFT_LEFT;
+				reportBuffer[1] = KEY_SEMICOLON;
+				break;
+
+			case ',':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_COMMA;
+				break;
+			case '<':
+				reportBuffer[0] = MOD_SHIFT_LEFT;
+				reportBuffer[1] = KEY_COMMA;
+				break;
+
+			case '.':
+				reportBuffer[0] = 0;
+				reportBuffer[1] = KEY_PERIOD;
+				break;
+			case '>':
+				reportBuffer[0] = MOD_SHIFT_LEFT;
+				reportBuffer[1] = KEY_PERIOD;
+				break;
+
+			default:
+				reportBuffer[0] = 0;
+				reportBuffer[1] = 0;
+		}
+	}
 }
 
 uchar	usbFunctionSetup(uchar data[8])
