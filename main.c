@@ -202,22 +202,27 @@ PROGMEM char usbHidReportDescriptor[35] = { /* USB report descriptor */
 #define KEY_F11        68
 #define KEY_F12        69
 
-static void build_report_from_char(uchar key)
+// Last char sent
+static uchar last_char = '\0';
+
+static void build_report_from_char(uchar c)
 {
-	if (key >= '0' && key <= '9') {
+	last_char = c;
+
+	if (c >= '0' && c <= '9') {
 		reportBuffer[0] = 0;
-		reportBuffer[1] = KEY_0 + key - '0';
+		reportBuffer[1] = KEY_0 + c - '0';
 	}
-	else if (key >= 'a' && key <= 'z') {
+	else if (c >= 'a' && c <= 'z') {
 		reportBuffer[0] = 0;
-		reportBuffer[1] = KEY_A + key - 'a';
+		reportBuffer[1] = KEY_A + c - 'a';
 	}
-	else if (key >= 'A' && key <= 'Z') {
+	else if (c >= 'A' && c <= 'Z') {
 		reportBuffer[0] = MOD_SHIFT_LEFT;
-		reportBuffer[1] = KEY_A + key - 'A';
+		reportBuffer[1] = KEY_A + c - 'A';
 	}
 	else {
-		switch (key) {
+		switch (c) {
 			case '\n':
 				reportBuffer[0] = 0;
 				reportBuffer[1] = KEY_ENTER;
@@ -296,22 +301,25 @@ static uchar send_next_char() {
 	// Builds a Report with the char pointed by 'string_pointer'.
 	//
 	// If a valid char is found, builds the report and returns 1.
-	// If a '\0' char is found, builds a report with no key being pressed, sets
-	// the pointer to NULL and returns 0.
-	// If the pointer is NULL, does nothing and returns 0.
+	// If the pointer is NULL or the char is '\0', builds a "no key being
+	// pressed" report and returns 0.
+	//
+	// If the next char is equal to the last char, then sends a "no key" before
+	// sending the char.
 
-	if (string_pointer != NULL) {
-		if (*string_pointer != '\0') {
-			build_report_from_char(*string_pointer);
-			string_pointer++;
-			return 1;
+	if (string_pointer != NULL && *string_pointer != '\0') {
+		if (*string_pointer == last_char) {
+			build_report_from_char('\0');
 		} else {
 			build_report_from_char(*string_pointer);
-			string_pointer = NULL;
-			return 0;
+			string_pointer++;
 		}
+		return 1;
+	} else {
+		build_report_from_char('\0');
+		string_pointer = NULL;
+		return 0;
 	}
-	return 0;
 }
 
 
@@ -355,7 +363,7 @@ usbRequest_t    *rq = (void *)data;
 int	main(void)
 {
 	int useless_counter = 0;
-	uchar should_send_report = 0;
+	uchar should_send_report = 1;
 
 	uchar idleCounter = 0;
 
