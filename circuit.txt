@@ -1,0 +1,71 @@
+## Circuit description ##
+
+The center piece of the circuit is ATmega8 microcontroller.
+
+Pins 7, 20, 21 (VCC, AVCC, AREF):
+  Connected to USB Vcc line.
+  Also connected to USBasp programmer.
+
+Pins 8, 22 (GND):
+  Connected to USB GND line.
+  Also connected to USBasp programmer.
+
+
+Pin 1 (RESET):
+  Connected to VCC through pull-up 10K resistor.
+  Also connected to USBasp programmer.
+
+Pin 2 (PD0):
+  Connected to USB D- line.
+  Since USB data lines are 3.6V, there is some circuitry to reduce ATmega8 5V
+  to 3.6V.
+
+Pin 3 (PD1, TXD):
+  Not connected.
+
+Pin 4 (PD2, INT0):
+  Connected to USB D+ line.
+  Since USB data lines are 3.6V, there is some circuitry to reduce ATmega8 5V
+  to 3.6V.
+
+Pins 9, 10 (XTAL1, XTAL2):
+  Connected to 12MHz crystal.
+
+Pins 11, 12, 13 (PD5, PD6, PD7):
+  Connected to LEDs, each one in series with a 1K or 2K2 resistor, which is
+  then connected to GND. (so, writing one to the pin will light up the LED)
+  These LEDs are used for debug purposes.
+
+Pins 17, 18, 19 (MOSI, MISO, SCK):
+  Connected to the USBasp programmer.
+
+Pins 26, 27, 28 (PC3, PC4, PC5):
+  Each one connected to a button, which is then connected to GND. The internal
+  pull-up is enabled, so when the button is released, the pin read as one.
+  At time of this writing, only one of the buttons was being used by the
+  firmware.
+
+
+
+## USB data lines circuit ##
+
+
+USB Vcc --------+---------------
+                |
+              [2K2]
+                |
+USB D-  --------+---+---[68]----- ATmega8 pin
+                    |
+           .--->|---'
+           |
+USB GND ---+
+           |
+           '--->|---.
+                    |
+USB D+  ------------+---[68]----- ATmega8 pin
+
+
+There is a pull-up 2K2 resistor at D- line because this is a low-speed device.
+There are 3V6 Zener diodes from the GND line to the data lines.
+There are 68 ohms resistors in series with each data line.
+
