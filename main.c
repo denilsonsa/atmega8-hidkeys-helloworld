@@ -281,6 +281,7 @@ static void build_report_from_char(uchar key)
 }
 
 
+// Exclamation point is being ignored, though
 static uchar hello_world[] = "Hello, world!\n";
 
 // 2**31 has 10 decimal digits, plus 1 for signal, plus 1 for NULL terminator
@@ -295,13 +296,19 @@ static uchar send_next_char() {
 	// Builds a Report with the char pointed by 'string_pointer'.
 	//
 	// If a valid char is found, builds the report and returns 1.
-	// If no valid char is found, does nothing and returns 0.
+	// If a '\0' char is found, builds a report with no key being pressed, sets
+	// the pointer to NULL and returns 0.
+	// If the pointer is NULL, does nothing and returns 0.
 
 	if (string_pointer != NULL) {
 		if (*string_pointer != '\0') {
 			build_report_from_char(*string_pointer);
 			string_pointer++;
 			return 1;
+		} else {
+			build_report_from_char(*string_pointer);
+			string_pointer = NULL;
+			return 0;
 		}
 	}
 	return 0;
@@ -390,9 +397,6 @@ int	main(void)
         if(should_send_report && usbInterruptIsReady()){
 			should_send_report = send_next_char();
             usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
-
-			if (!should_send_report)
-				build_report_from_char('\0');
         }
 	}
 	return 0;
