@@ -366,6 +366,7 @@ int	main(void)
 		if (key_changed & 0x01) {
 			if (key_state & 0x01) {
 				// If the user started pressing the first key
+				PORTD ^= 0x20;
 				if (!should_send_report) {
 					// And this firmware is not sending anything
 					string_pointer = hello_world;
@@ -389,6 +390,9 @@ int	main(void)
         if(should_send_report && usbInterruptIsReady()){
 			should_send_report = send_next_char();
             usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
+
+			if (!should_send_report)
+				build_report_from_char('\0');
         }
 	}
 	return 0;
