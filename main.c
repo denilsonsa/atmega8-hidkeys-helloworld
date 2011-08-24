@@ -43,65 +43,57 @@ PD1	debug tx
 PD2	USB+ (int0)
 PD3	(not used)
 PD4	(not used)
-PD5	(not used)
-PD6	(not used)
-PD7	(not used)
+PD5	red debug LED
+PD6	yellow debug LED
+PD7	green debug LED
 */
 
 static void hardwareInit(void)
 {
 uchar	i, j;
 
+	const uchar USB_PINS       = 0x05;  /* 0000 0101 */
+	const uchar DEBUG_PINS     = 0xE0;  /* 1110 0000 */
+	const uchar UART_DEBUG_PIN = 0x02;  /* 0000 0010 */
+
     PORTB = 0xff;   /* activate all pull-ups */
     DDRB = 0;       /* all pins input */
     PORTC = 0xff;   /* activate all pull-ups */
     DDRC = 0;       /* all pins input */
-    PORTD = 0xfa;   /* 1111 1010 bin: activate pull-ups except on USB lines */
-    DDRD = 0x07;    /* 0000 0111 bin: all pins input except USB (-> USB reset) */
+
+    //PORTD = 0xfa;   /* 1111 1010 bin: activate pull-ups except on USB lines */
+    //DDRD = 0x07;    /* 0000 0111 bin: all pins input except USB (-> USB reset) */
+	PORTD = 0xFF ^ (USB_PINS | DEBUG_PINS);
+	DDRD = 0 | USB_PINS | UART_DEBUG_PIN | DEBUG_PINS;
+
 	j = 0;
 	while(--j){     /* USB Reset by device only required on Watchdog Reset */
 		i = 0;
 		while(--i)
 			asm(""); /* delay >10ms for USB reset */
 	}
-    DDRD = 0x02;    /* 0000 0010 bin: remove USB reset condition */
+
+    DDRD &= ~USB_PINS;    /* remove USB reset condition, set the pins as input */
+
     /* configure timer 0 for a rate of 12M/(1024 * 256) = 45.78 Hz (~22ms) */
     TCCR0 = 5;      /* timer 0 prescaler: 1024 */
 }
 
 /* ------------------------------------------------------------------------- */
 
-#define NUM_KEYS    17
 
-/* The following function returns an index for the first key pressed. It
- * returns 0 if no key is pressed.
- */
-static uchar    keyPressed(void)
-{
-uchar   i, mask, x;
+static uchar key_state = 0;
+static uchar key_changed = 0;
 
-    x = PINB;
-    mask = 1;
-    for(i=0;i<6;i++){
-        if((x & mask) == 0)
-            return i + 1;
-        mask <<= 1;
-    }
-    x = PINC;
-    mask = 1;
-    for(i=0;i<6;i++){
-        if((x & mask) == 0)
-            return i + 7;
-        mask <<= 1;
-    }
-    x = PIND;
-    mask = 1 << 3;
-    for(i=0;i<5;i++){
-        if((x & mask) == 0)
-            return i + 13;
-        mask <<= 1;
-    }
-    return 0;
+static void update_key_state() {
+	uchar state;
+
+	// buttons are on PC3, PC4, PC5
+	// buttons are ON when connected to GND, and thus read as zero
+	// buttons are OFF when open, and thus the internal pull-up makes them read as one
+	state = (PINC >> 3) ^ 0x07;
+	key_changed = key_state ^ state;
+	key_state = state;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -210,7 +202,7 @@ PROGMEM char usbHidReportDescriptor[35] = { /* USB report descriptor */
 #define KEY_F11        68
 #define KEY_F12        69
 
-static void buildReport(uchar key)
+static void build_report_from_char(uchar key)
 {
 	if (key >= '0' && key <= '9') {
 		reportBuffer[0] = 0;
@@ -288,6 +280,34 @@ static void buildReport(uchar key)
 	}
 }
 
+
+static uchar hello_world[] = "Hello, world!\n";
+
+// 2**31 has 10 decimal digits, plus 1 for signal, plus 1 for NULL terminator
+static uchar number_buffer[12];
+
+
+// Pointer to RAM... Yeah, for static strings that's a waste of RAM, but it's
+// good enough for now.
+static uchar *string_pointer = NULL;
+
+static uchar send_next_char() {
+	// Builds a Report with the char pointed by 'string_pointer'.
+	//
+	// If a valid char is found, builds the report and returns 1.
+	// If no valid char is found, does nothing and returns 0.
+
+	if (string_pointer != NULL) {
+		if (*string_pointer != '\0') {
+			build_report_from_char(*string_pointer);
+			string_pointer++;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+
 uchar	usbFunctionSetup(uchar data[8])
 {
 usbRequest_t    *rq = (void *)data;
@@ -296,7 +316,13 @@ usbRequest_t    *rq = (void *)data;
     if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS){    /* class request type */
         if(rq->bRequest == USBRQ_HID_GET_REPORT){  /* wValue: ReportType (highbyte), ReportID (lowbyte) */
             /* we only have one report type, so don't look at wValue */
-            buildReport(keyPressed());
+
+			// XXX: Ainda não entendi quando isto é chamado...
+			// TODO: Fazer ligar um LED quando isto acontecer.
+			PORTD ^= 0x80;
+			build_report_from_char('\0');
+
+            //buildReport(keyPressed());
 			// Achei que isto fosse necessário, mas não é
             // usbMsgPtr = reportBuffer;
             return sizeof(reportBuffer);
@@ -321,8 +347,10 @@ usbRequest_t    *rq = (void *)data;
 
 int	main(void)
 {
-uchar   key, lastKey = 0, keyDidChange = 0;
-uchar   idleCounter = 0;
+	int useless_counter = 0;
+	uchar should_send_report = 0;
+
+	uchar idleCounter = 0;
 
 	wdt_enable(WDTO_2S);
     hardwareInit();
@@ -333,11 +361,19 @@ uchar   idleCounter = 0;
 	for(;;){	/* main event loop */
 		wdt_reset();
 		usbPoll();
-        key = keyPressed();
-        if(lastKey != key){
-            lastKey = key;
-            keyDidChange = 1;
-        }
+		update_key_state();
+
+		if (key_changed & 0x01) {
+			if (key_state & 0x01) {
+				// If the user started pressing the first key
+				if (!should_send_report) {
+					// And this firmware is not sending anything
+					string_pointer = hello_world;
+					should_send_report = 1;
+				}
+			}
+		}
+
         if(TIFR & (1<<TOV0)){   /* 22 ms timer */
             TIFR = 1<<TOV0;
             if(idleRate != 0){
@@ -345,15 +381,13 @@ uchar   idleCounter = 0;
                     idleCounter -= 5;   /* 22 ms in units of 4 ms */
                 }else{
                     idleCounter = idleRate;
-                    keyDidChange = 1;
+                    //keyDidChange = 1;
+					PORTD ^= 0x40;
                 }
             }
         }
-        if(keyDidChange && usbInterruptIsReady()){
-            keyDidChange = 0;
-            /* use last key and not current key status in order to avoid lost
-               changes in key status. */
-            buildReport(lastKey);
+        if(should_send_report && usbInterruptIsReady()){
+			should_send_report = send_next_char();
             usbSetInterrupt(reportBuffer, sizeof(reportBuffer));
         }
 	}
