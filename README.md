@@ -9,4 +9,4 @@ at my blog: [First contact with ATmega8 microcontroller][3]
 
 [1]: http://www.obdev.at/products/vusb/hidkeys.html
 [2]: http://www.youtube.com/watch?v=klFM_b8mhnY
-[3]: http://my.opera.com/CrazyTerabyte/blog/2007/10/25/first-contact-with-atmega8-microcontroller-part-1
+[3]: https://denilson.sa.nom.br/blog/2007-10-25/first-contact-with-atmega8-microcontroller-part-1
